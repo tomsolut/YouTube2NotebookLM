@@ -128,7 +128,8 @@ async def main():
         parser.print_help()
         sys.exit(1)
 
-    async with NotebookLMClient.from_storage() as client:
+    client = await NotebookLMClient.from_storage()
+    async with client:
         if args.command == "create":
             notebook = await create_notebook(client, args.name, args.urls)
             # Output notebook ID as JSON for pipeline usage
