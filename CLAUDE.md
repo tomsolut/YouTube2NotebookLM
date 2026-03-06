@@ -14,13 +14,14 @@ Zwei Claude Code Skills als Pipeline:
 ## Befehle
 ```bash
 # YouTube-Suche
-python scripts/yt_search.py "query" --count 5
-python scripts/yt_search.py "query" --json
+uv run python scripts/yt_search.py "query" --count 5
+uv run python scripts/yt_search.py "query" --json
 
 # NotebookLM
-python scripts/nlm_pipeline.py --create "Name" --urls URL1 URL2
-python scripts/nlm_pipeline.py --ask "Frage" --notebook-id ID
-python scripts/nlm_pipeline.py --audio --notebook-id ID
+uv run python scripts/nlm_pipeline.py create --name "Name" --urls URL1 URL2
+uv run python scripts/nlm_pipeline.py list
+uv run python scripts/nlm_pipeline.py ask --notebook-id ID --question "Frage"
+uv run python scripts/nlm_pipeline.py audio --notebook-id ID --output podcast.wav
 ```
 
 ## Dependencies
