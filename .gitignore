@@ -20,3 +20,8 @@ Thumbs.db
 
 # NotebookLM
 *.cookies
+
+# Audio files
+*.wav
+*.mp3
+*.mp4

@@ -7,6 +7,7 @@
 | #1 | YouTube-Suche Skill | erledigt |
 | #2 | NotebookLM-Integration | erledigt |
 | #3 | Pipeline-Test & Doku | erledigt |
+| #4 | Podcast-Publishing mit Telegram-Approval | erledigt |
 
 ## Erkenntnisse
 
@@ -18,3 +19,9 @@
 - `python` existiert nicht auf macOS, immer `uv run python` oder `python3` verwenden
 - `sources.add_url()` erkennt YouTube-URLs automatisch und nutzt die richtige Methode
 - Audio-Generierung kann mehrere Minuten dauern, `wait_for_completion()` mit timeout=600 nutzen
+- `GenerationStatus` hat kein `artifact_id` — stattdessen `task_id` und `is_complete`/`is_failed`
+- `download_audio()` braucht kein `artifact_id`, findet das neueste Audio automatisch
+- `AudioLength.LONG` für längere Podcasts nutzen
+- Multiline XML über SSH-sed ist fragil — besser Feed per scp runterladen, lokal bearbeiten, hochladen
+- Telegram Long-Polling braucht erhöhten httpx-Timeout (mind. 60s)
+- ffmpeg ist auf dem Server vorhanden, lokal nicht — WAV-Konvertierung auf Server auslagern

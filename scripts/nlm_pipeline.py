@@ -51,14 +51,23 @@ async def ask_question(client, notebook_id, question):
     return result
 
 
-async def generate_audio(client, notebook_id, language="de", instructions=None, output_path=None):
+async def generate_audio(client, notebook_id, language="de", instructions=None,
+                         audio_length=None, output_path=None):
     """Generate audio overview for a notebook."""
+    from notebooklm import AudioLength
+
     print("Audio-Podcast wird generiert (kann einige Minuten dauern)...")
+
+    # AudioLength: SHORT, DEFAULT, LONG
+    length = None
+    if audio_length:
+        length = getattr(AudioLength, audio_length.upper(), None)
 
     status = await client.artifacts.generate_audio(
         notebook_id,
         language=language,
         instructions=instructions,
+        audio_length=length,
     )
 
     print(f"Generation gestartet (Task-ID: {status.task_id})")
@@ -70,11 +79,13 @@ async def generate_audio(client, notebook_id, language="de", instructions=None, 
         timeout=600,
     )
 
-    if result.artifact_id:
-        print(f"Audio fertig! (Artifact-ID: {result.artifact_id})")
+    if result.is_complete:
+        print(f"Audio fertig! (Task-ID: {status.task_id})")
         if output_path:
-            path = await client.artifacts.download_audio(notebook_id, output_path, result.artifact_id)
+            path = await client.artifacts.download_audio(notebook_id, output_path)
             print(f"Heruntergeladen: {path}")
+    elif result.is_failed:
+        print(f"Fehler: {result.error}")
     else:
         print(f"Status: {result.status}")
 
@@ -120,6 +131,7 @@ async def main():
     audio_parser.add_argument("--notebook-id", required=True, help="Notebook-ID")
     audio_parser.add_argument("--language", default="de", help="Sprache (default: de)")
     audio_parser.add_argument("--instructions", help="Zusaetzliche Anweisungen fuer den Podcast")
+    audio_parser.add_argument("--length", choices=["short", "default", "long"], help="Podcast-Laenge")
     audio_parser.add_argument("--output", help="Ausgabepfad fuer die Audio-Datei")
 
     args = parser.parse_args()
@@ -150,6 +162,7 @@ async def main():
                 args.notebook_id,
                 language=args.language,
                 instructions=args.instructions,
+                audio_length=args.length,
                 output_path=args.output,
             )
 
