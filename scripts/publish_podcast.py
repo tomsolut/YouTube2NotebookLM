@@ -234,7 +234,7 @@ def init_nlm_feed():
     <language>de</language>
     <itunes:author>Tom Bieth</itunes:author>
     <itunes:category text="Technology" />
-    <itunes:image href="{BASE_URL}/artwork/nlm-cover.jpg" />
+    <itunes:image href="{BASE_URL}/artwork/nlm-cover.png" />
     <itunes:explicit>false</itunes:explicit>
 
     <!-- NEUE EPISODEN HIER -->
