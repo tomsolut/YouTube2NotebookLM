@@ -8,6 +8,7 @@
 | #2 | NotebookLM-Integration | erledigt |
 | #3 | Pipeline-Test & Doku | erledigt |
 | #4 | Podcast-Publishing mit Telegram-Approval | erledigt |
+| #6 | Telegram-Approval von Polling auf n8n-Webhook | erledigt |
 
 ## Erkenntnisse
 
@@ -25,3 +26,7 @@
 - Multiline XML über SSH-sed ist fragil — besser Feed per scp runterladen, lokal bearbeiten, hochladen
 - Telegram Long-Polling braucht erhöhten httpx-Timeout (mind. 60s)
 - ffmpeg ist auf dem Server vorhanden, lokal nicht — WAV-Konvertierung auf Server auslagern
+- n8n API: Connections verwenden Node-Namen (nicht IDs), Aktivierung via POST .../activate
+- n8n: `N8N_RESTRICT_FILE_ACCESS_TO` muss `/var/www/podcast` enthalten fuer Feed-Zugriff
+- BlueDot nutzt Telegram-Webhooks mit separatem Bot-Token (`TELEGRAM_BOT_TOKEN_BLUEDOT`) — kein Polling-Konflikt mit NLM-Bot
+- NLM-Callback-Daten prefixed mit `nlm_` zur Unterscheidung von anderen Bots

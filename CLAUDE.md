@@ -23,9 +23,10 @@ uv run python scripts/nlm_pipeline.py list
 uv run python scripts/nlm_pipeline.py ask --notebook-id ID --question "Frage"
 uv run python scripts/nlm_pipeline.py audio --notebook-id ID --length long --output podcast.wav
 
-# Podcast Publishing (Download → MP3 → Telegram-Approval → RSS)
+# Podcast Publishing (Download → MP3 → n8n Webhook → Telegram-Approval async)
 uv run python scripts/publish_podcast.py init
 uv run python scripts/publish_podcast.py publish --notebook-id ID --title "Titel"
+# publish beendet sofort — Telegram-Approval laeuft async via n8n
 ```
 
 ## Dependencies
@@ -40,7 +41,10 @@ uv pip install httpx
 - Podcast-URL: `https://podcast.tomsolut.work`
 - NLM RSS-Feed: `https://podcast.tomsolut.work/nlm-feed.xml`
 - Bestehender Feed: `feed.xml` (Tom's Weekly Briefings — nicht anfassen)
-- Telegram-Bot für Approval: Config in `.env`
+- n8n (self-hosted): `http://100.77.144.40:5678` — Telegram-Approval + RSS-Update
+  - Workflow "NLM Podcast Webhook" (ID: YiATsxWZjUoqFpHw)
+  - Workflow "NLM Podcast Callback Handler" (ID: MA1L7ax6vJfRq4Ce)
+- Pending-Datei: `/var/www/podcast/pending_episodes.json`
 
 ## Workflow
 - GitHub-First: Issue → Branch → Implementierung → Merge
