@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NotebookLM pipeline — create notebooks, add YouTube sources, ask questions, generate audio."""
+"""NotebookLM pipeline — create notebooks, add YouTube sources, ask questions, generate artifacts."""
 
 import argparse
 import asyncio
@@ -20,6 +20,20 @@ load_dotenv()
 PENDING_FILE = Path(__file__).parent.parent / "pending_generations.json"
 MAC_MINI_HOST = "thomasbieth@100.71.69.76"
 MAC_MINI_PENDING = "~/Development/YouTube2NotebookLM/pending_generations.json"
+
+# Supported artifact types and their emoji
+ARTIFACT_TYPES = {
+    "audio":      {"emoji": "🎙", "label": "Audio Overview"},
+    "video":      {"emoji": "🎬", "label": "Video Overview"},
+    "slide-deck": {"emoji": "📊", "label": "Slide Deck"},
+    "infographic":{"emoji": "🖼", "label": "Infographic"},
+    "report":     {"emoji": "📄", "label": "Report"},
+    "quiz":       {"emoji": "❓", "label": "Quiz"},
+    "flashcards": {"emoji": "🃏", "label": "Flashcards"},
+    "data-table": {"emoji": "📋", "label": "Data Table"},
+    "mind-map":   {"emoji": "🧠", "label": "Mind Map"},
+    "study-guide":{"emoji": "📚", "label": "Study Guide"},
+}
 
 
 async def create_notebook(client, title, urls):
@@ -135,6 +149,116 @@ async def _get_notebook_title(client, notebook_id: str) -> str:
         return notebook_id[:12] + "..."
 
 
+async def generate_artifact(client, notebook_id, artifact_type, language="de",
+                            instructions=None, no_wait=False, **kwargs):
+    """Generate any NotebookLM Studio artifact with Fire-and-Forget support."""
+    from notebooklm.rpc import (
+        AudioLength, InfographicDetail, InfographicOrientation,
+        QuizDifficulty, QuizQuantity, ReportFormat,
+        SlideDeckFormat, SlideDeckLength, VideoFormat, VideoStyle,
+    )
+
+    info = ARTIFACT_TYPES[artifact_type]
+    title = await _get_notebook_title(client, notebook_id)
+    print(f"{info['emoji']} {info['label']} wird generiert fuer \"{title}\"...")
+
+    # Dispatch to the right generate method
+    if artifact_type == "audio":
+        length = None
+        if kwargs.get("length"):
+            length = getattr(AudioLength, kwargs["length"].upper(), None)
+        status = await client.artifacts.generate_audio(
+            notebook_id, language=language, instructions=instructions,
+            audio_length=length,
+        )
+    elif artifact_type == "video":
+        fmt = getattr(VideoFormat, kwargs["format"].upper(), None) if kwargs.get("format") else None
+        style = getattr(VideoStyle, kwargs["style"].upper(), None) if kwargs.get("style") else None
+        status = await client.artifacts.generate_video(
+            notebook_id, language=language, instructions=instructions,
+            video_format=fmt, video_style=style,
+        )
+    elif artifact_type == "slide-deck":
+        fmt = getattr(SlideDeckFormat, kwargs["format"].upper(), None) if kwargs.get("format") else None
+        length = getattr(SlideDeckLength, kwargs["length"].upper(), None) if kwargs.get("length") else None
+        status = await client.artifacts.generate_slide_deck(
+            notebook_id, language=language, instructions=instructions,
+            slide_format=fmt, slide_length=length,
+        )
+    elif artifact_type == "infographic":
+        orientation = getattr(InfographicOrientation, kwargs["orientation"].upper(), None) if kwargs.get("orientation") else None
+        detail = getattr(InfographicDetail, kwargs["detail"].upper(), None) if kwargs.get("detail") else None
+        status = await client.artifacts.generate_infographic(
+            notebook_id, language=language, instructions=instructions,
+            orientation=orientation, detail_level=detail,
+        )
+    elif artifact_type == "report":
+        fmt = getattr(ReportFormat, kwargs["format"].upper(), None) if kwargs.get("format") else ReportFormat.BRIEFING_DOC
+        status = await client.artifacts.generate_report(
+            notebook_id, report_format=fmt, language=language,
+            custom_prompt=instructions if fmt == ReportFormat.CUSTOM else None,
+            extra_instructions=instructions if fmt != ReportFormat.CUSTOM else None,
+        )
+    elif artifact_type == "quiz":
+        qty = getattr(QuizQuantity, kwargs["quantity"].upper(), None) if kwargs.get("quantity") else None
+        diff = getattr(QuizDifficulty, kwargs["difficulty"].upper(), None) if kwargs.get("difficulty") else None
+        status = await client.artifacts.generate_quiz(
+            notebook_id, instructions=instructions, quantity=qty, difficulty=diff,
+        )
+    elif artifact_type == "flashcards":
+        qty = getattr(QuizQuantity, kwargs["quantity"].upper(), None) if kwargs.get("quantity") else None
+        diff = getattr(QuizDifficulty, kwargs["difficulty"].upper(), None) if kwargs.get("difficulty") else None
+        status = await client.artifacts.generate_flashcards(
+            notebook_id, instructions=instructions, quantity=qty, difficulty=diff,
+        )
+    elif artifact_type == "data-table":
+        status = await client.artifacts.generate_data_table(
+            notebook_id, language=language, instructions=instructions,
+        )
+    elif artifact_type == "mind-map":
+        result = await client.artifacts.generate_mind_map(notebook_id)
+        print(f"Mind Map erstellt! (Note-ID: {result.get('note_id', 'n/a')})")
+        return result
+    elif artifact_type == "study-guide":
+        status = await client.artifacts.generate_study_guide(
+            notebook_id, language=language, extra_instructions=instructions,
+        )
+    else:
+        print(f"Unbekannter Typ: {artifact_type}")
+        sys.exit(1)
+
+    task_id = status.task_id
+    print(f"Generation gestartet (Task-ID: {task_id})")
+
+    desc = f"{info['label']}: {instructions[:60]}" if instructions else info["label"]
+    _add_pending(notebook_id, task_id, title=title, description=desc)
+
+    if no_wait:
+        print(f"\nFire-and-Forget: Task-ID gespeichert in {PENDING_FILE}")
+        print(f"Status pruefen mit: uv run python scripts/nlm_pipeline.py check-status --notebook-id {notebook_id} --task-id {task_id}")
+        return status
+
+    print("Warte auf Fertigstellung...")
+    result = await client.artifacts.wait_for_completion(notebook_id, task_id, timeout=1200)
+
+    if result.is_complete:
+        print(f"{info['emoji']} {info['label']} fertig!")
+        _remove_pending(task_id)
+        await _send_telegram(
+            f"{info['emoji']} *{info['label']} fertig!*\n"
+            f"📓 {title}\n"
+            f"📝 {desc}"
+        )
+    elif result.is_failed:
+        print(f"Fehler: {result.error}")
+        _remove_pending(task_id)
+        await _send_telegram(f"❌ *{info['label']} fehlgeschlagen*\n📓 {title}\nFehler: {result.error}")
+    else:
+        print(f"Status: {result.status} (Task laeuft noch)")
+
+    return result
+
+
 async def generate_audio(client, notebook_id, language="de", instructions=None,
                          audio_length=None, output_path=None, no_wait=False):
     """Generate audio overview for a notebook."""
@@ -197,22 +321,29 @@ async def generate_audio(client, notebook_id, language="de", instructions=None,
 
 
 async def check_status(client, notebook_id, task_id, title=None, description=None, download_path=None):
-    """Check status of a running audio generation and notify via Telegram."""
+    """Check status of a running generation and notify via Telegram."""
     if not title:
         title = await _get_notebook_title(client, notebook_id)
-    desc = description or "Audio"
+    desc = description or "Artefakt"
+
+    # Detect artifact type from description for emoji
+    emoji = "✅"
+    for atype, info in ARTIFACT_TYPES.items():
+        if info["label"] in desc:
+            emoji = info["emoji"]
+            break
+
     print(f"Pruefe Status fuer \"{title}\" (Task {task_id[:8]}...)...")
 
     result = await client.artifacts.poll_status(notebook_id, task_id)
 
     if result.is_complete:
-        print(f"Audio fertig!")
+        print(f"{emoji} Fertig!")
         _remove_pending(task_id)
         await _send_telegram(
-            f"🎙 *Audio fertig!*\n"
+            f"{emoji} *Fertig!*\n"
             f"📓 {title}\n"
-            f"📝 {desc}\n\n"
-            f"Download:\n`uv run python scripts/nlm_pipeline.py download --notebook-id {notebook_id} --output podcast.wav`"
+            f"📝 {desc}"
         )
         if download_path:
             path = await client.artifacts.download_audio(notebook_id, download_path)
@@ -220,7 +351,7 @@ async def check_status(client, notebook_id, task_id, title=None, description=Non
     elif result.is_failed:
         print(f"Fehler: {result.error}")
         _remove_pending(task_id)
-        await _send_telegram(f"❌ *Audio fehlgeschlagen*\n📓 {title}\nFehler: {result.error}")
+        await _send_telegram(f"❌ *Fehlgeschlagen*\n📓 {title}\n📝 {desc}\nFehler: {result.error}")
     else:
         print(f"Status: Noch in Bearbeitung")
 
@@ -287,7 +418,7 @@ async def main():
     ask_parser.add_argument("--notebook-id", required=True, help="Notebook-ID")
     ask_parser.add_argument("--question", required=True, help="Die Frage")
 
-    # audio
+    # audio (legacy, bleibt fuer Kompatibilitaet)
     audio_parser = subparsers.add_parser("audio", help="Audio-Podcast generieren")
     audio_parser.add_argument("--notebook-id", required=True, help="Notebook-ID")
     audio_parser.add_argument("--language", default="de", help="Sprache (default: de)")
@@ -295,6 +426,21 @@ async def main():
     audio_parser.add_argument("--length", choices=["short", "default", "long"], help="Podcast-Laenge")
     audio_parser.add_argument("--output", help="Ausgabepfad fuer die Audio-Datei")
     audio_parser.add_argument("--no-wait", action="store_true", help="Fire-and-Forget: Generierung starten ohne zu warten")
+
+    # generate (generisch fuer alle Artefakt-Typen)
+    gen_parser = subparsers.add_parser("generate", help="Studio-Artefakt generieren (audio, video, infographic, ...)")
+    gen_parser.add_argument("--notebook-id", required=True, help="Notebook-ID")
+    gen_parser.add_argument("--type", required=True, choices=list(ARTIFACT_TYPES.keys()), help="Artefakt-Typ")
+    gen_parser.add_argument("--language", default="de", help="Sprache (default: de)")
+    gen_parser.add_argument("--instructions", help="Anweisungen fuer die Generierung")
+    gen_parser.add_argument("--no-wait", action="store_true", help="Fire-and-Forget")
+    gen_parser.add_argument("--format", help="Format (report: briefing_doc/study_guide/blog_post/custom | video: explainer/brief | slide-deck: detailed_deck/presenter_slides)")
+    gen_parser.add_argument("--length", help="Laenge (audio: short/default/long | slide-deck: default/short)")
+    gen_parser.add_argument("--style", help="Stil (video: auto_select/classic/whiteboard)")
+    gen_parser.add_argument("--orientation", help="Orientierung (infographic: landscape/portrait/square)")
+    gen_parser.add_argument("--detail", help="Detailgrad (infographic: concise/standard/detailed)")
+    gen_parser.add_argument("--quantity", help="Menge (quiz/flashcards: fewer/standard/more)")
+    gen_parser.add_argument("--difficulty", help="Schwierigkeit (quiz/flashcards: easy/medium/hard)")
 
     # check-status
     cs_parser = subparsers.add_parser("check-status", help="Status einer laufenden Audio-Generierung pruefen")
@@ -339,6 +485,23 @@ async def main():
                 audio_length=args.length,
                 output_path=args.output,
                 no_wait=args.no_wait,
+            )
+
+        elif args.command == "generate":
+            await generate_artifact(
+                client,
+                args.notebook_id,
+                artifact_type=args.type,
+                language=args.language,
+                instructions=args.instructions,
+                no_wait=args.no_wait,
+                format=args.format,
+                length=args.length,
+                style=args.style,
+                orientation=args.orientation,
+                detail=args.detail,
+                quantity=args.quantity,
+                difficulty=args.difficulty,
             )
 
         elif args.command == "check-status":

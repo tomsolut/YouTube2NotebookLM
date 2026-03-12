@@ -23,6 +23,15 @@ uv run python scripts/nlm_pipeline.py list
 uv run python scripts/nlm_pipeline.py ask --notebook-id ID --question "Frage"
 uv run python scripts/nlm_pipeline.py audio --notebook-id ID --length long --output podcast.wav
 uv run python scripts/nlm_pipeline.py audio --notebook-id ID --no-wait  # Fire-and-Forget
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type infographic --no-wait --instructions "..."
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type video --no-wait
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type slide-deck --no-wait --format detailed_deck
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type report --format blog_post --no-wait
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type quiz --difficulty medium --quantity standard
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type flashcards --no-wait
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type data-table --no-wait
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type mind-map
+uv run python scripts/nlm_pipeline.py generate --notebook-id ID --type study-guide --no-wait
 uv run python scripts/nlm_pipeline.py check-status --all  # Alle ausstehenden pruefen
 uv run python scripts/nlm_pipeline.py check-status --notebook-id ID --task-id TID --output podcast.wav
 uv run python scripts/nlm_pipeline.py download --notebook-id ID --output podcast.wav
