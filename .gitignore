@@ -25,3 +25,4 @@ Thumbs.db
 *.wav
 *.mp3
 *.mp4
+pending_generations.json

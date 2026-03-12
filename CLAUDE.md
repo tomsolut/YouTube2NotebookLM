@@ -22,6 +22,10 @@ uv run python scripts/nlm_pipeline.py create --name "Name" --urls URL1 URL2
 uv run python scripts/nlm_pipeline.py list
 uv run python scripts/nlm_pipeline.py ask --notebook-id ID --question "Frage"
 uv run python scripts/nlm_pipeline.py audio --notebook-id ID --length long --output podcast.wav
+uv run python scripts/nlm_pipeline.py audio --notebook-id ID --no-wait  # Fire-and-Forget
+uv run python scripts/nlm_pipeline.py check-status --all  # Alle ausstehenden pruefen
+uv run python scripts/nlm_pipeline.py check-status --notebook-id ID --task-id TID --output podcast.wav
+uv run python scripts/nlm_pipeline.py download --notebook-id ID --output podcast.wav
 
 # Podcast Publishing (Download → MP3 → n8n Webhook → Telegram-Approval async)
 uv run python scripts/publish_podcast.py init

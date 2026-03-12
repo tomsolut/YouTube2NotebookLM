@@ -19,9 +19,12 @@
 - Perplexity hat die notebooklm-py API falsch beschrieben — immer gegen echte Doku verifizieren
 - `python` existiert nicht auf macOS, immer `uv run python` oder `python3` verwenden
 - `sources.add_url()` erkennt YouTube-URLs automatisch und nutzt die richtige Methode
-- Audio-Generierung kann mehrere Minuten dauern, `wait_for_completion()` mit timeout=600 nutzen
+- Audio-Generierung kann mehrere Minuten dauern — `--no-wait` fuer Fire-and-Forget nutzen
+- Bei Timeout NIEMALS neu generieren — stattdessen `check-status` fuer bestehende Task-ID nutzen
+- `poll_status(notebook_id, task_id)` funktioniert auch in neuer Session (listet alle Artefakte)
 - `GenerationStatus` hat kein `artifact_id` — stattdessen `task_id` und `is_complete`/`is_failed`
 - `download_audio()` braucht kein `artifact_id`, findet das neueste Audio automatisch
+- Telegram-Benachrichtigung via @tomsolut_bot bei Audio-Fertigstellung (TELEGRAM_BOT_TOKEN in .env)
 - `AudioLength.LONG` für längere Podcasts nutzen
 - Multiline XML über SSH-sed ist fragil — besser Feed per scp runterladen, lokal bearbeiten, hochladen
 - Telegram Long-Polling braucht erhöhten httpx-Timeout (mind. 60s)
