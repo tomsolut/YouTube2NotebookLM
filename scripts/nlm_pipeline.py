@@ -72,12 +72,13 @@ def _save_pending(entries: list):
     PENDING_FILE.write_text(json.dumps(entries, indent=2, ensure_ascii=False))
 
 
-def _add_pending(notebook_id: str, task_id: str, description: str = ""):
+def _add_pending(notebook_id: str, task_id: str, title: str = "", description: str = ""):
     """Add a pending generation entry."""
     entries = _load_pending()
     entries.append({
         "notebook_id": notebook_id,
         "task_id": task_id,
+        "title": title,
         "description": description,
         "started_at": datetime.now().isoformat(),
     })
@@ -109,12 +110,22 @@ async def _send_telegram(message: str):
     print("Telegram-Benachrichtigung gesendet.")
 
 
+async def _get_notebook_title(client, notebook_id: str) -> str:
+    """Fetch notebook title, return fallback on error."""
+    try:
+        nb = await client.notebooks.get(notebook_id)
+        return nb.title
+    except Exception:
+        return notebook_id[:12] + "..."
+
+
 async def generate_audio(client, notebook_id, language="de", instructions=None,
                          audio_length=None, output_path=None, no_wait=False):
     """Generate audio overview for a notebook."""
     from notebooklm import AudioLength
 
-    print("Audio-Podcast wird generiert (kann einige Minuten dauern)...")
+    title = await _get_notebook_title(client, notebook_id)
+    print(f"Audio-Podcast wird generiert fuer \"{title}\" (kann einige Minuten dauern)...")
 
     # AudioLength: SHORT, DEFAULT, LONG
     length = None
@@ -132,7 +143,7 @@ async def generate_audio(client, notebook_id, language="de", instructions=None,
     print(f"Generation gestartet (Task-ID: {task_id})")
 
     desc = instructions[:80] if instructions else "Audio"
-    _add_pending(notebook_id, task_id, desc)
+    _add_pending(notebook_id, task_id, title=title, description=desc)
 
     if no_wait:
         print(f"\nFire-and-Forget: Task-ID gespeichert in {PENDING_FILE}")
@@ -150,39 +161,52 @@ async def generate_audio(client, notebook_id, language="de", instructions=None,
     if result.is_complete:
         print(f"Audio fertig! (Task-ID: {task_id})")
         _remove_pending(task_id)
-        await _send_telegram(f"🎙 *Audio fertig!*\nTask: `{task_id}`\nNotebook: `{notebook_id}`")
+        await _send_telegram(
+            f"🎙 *Audio fertig!*\n"
+            f"📓 {title}\n"
+            f"📝 {desc}\n\n"
+            f"Download:\n`uv run python scripts/nlm_pipeline.py download --notebook-id {notebook_id} --output podcast.wav`"
+        )
         if output_path:
             path = await client.artifacts.download_audio(notebook_id, output_path)
             print(f"Heruntergeladen: {path}")
     elif result.is_failed:
         print(f"Fehler: {result.error}")
         _remove_pending(task_id)
-        await _send_telegram(f"❌ *Audio-Generierung fehlgeschlagen*\nTask: `{task_id}`\nFehler: {result.error}")
+        await _send_telegram(f"❌ *Audio fehlgeschlagen*\n📓 {title}\nFehler: {result.error}")
     else:
         print(f"Status: {result.status} (Task laeuft noch)")
 
     return result
 
 
-async def check_status(client, notebook_id, task_id, download_path=None):
+async def check_status(client, notebook_id, task_id, title=None, description=None, download_path=None):
     """Check status of a running audio generation and notify via Telegram."""
-    print(f"Pruefe Status fuer Task {task_id}...")
+    if not title:
+        title = await _get_notebook_title(client, notebook_id)
+    desc = description or "Audio"
+    print(f"Pruefe Status fuer \"{title}\" (Task {task_id[:8]}...)...")
 
     result = await client.artifacts.poll_status(notebook_id, task_id)
 
     if result.is_complete:
-        print(f"Audio fertig! (Task-ID: {task_id})")
+        print(f"Audio fertig!")
         _remove_pending(task_id)
-        await _send_telegram(f"🎙 *Audio fertig!*\nTask: `{task_id}`\nNotebook: `{notebook_id}`")
+        await _send_telegram(
+            f"🎙 *Audio fertig!*\n"
+            f"📓 {title}\n"
+            f"📝 {desc}\n\n"
+            f"Download:\n`uv run python scripts/nlm_pipeline.py download --notebook-id {notebook_id} --output podcast.wav`"
+        )
         if download_path:
             path = await client.artifacts.download_audio(notebook_id, download_path)
             print(f"Heruntergeladen: {path}")
     elif result.is_failed:
         print(f"Fehler: {result.error}")
         _remove_pending(task_id)
-        await _send_telegram(f"❌ *Audio-Generierung fehlgeschlagen*\nTask: `{task_id}`")
+        await _send_telegram(f"❌ *Audio fehlgeschlagen*\n📓 {title}\nFehler: {result.error}")
     else:
-        print(f"Status: Noch in Bearbeitung (Task-ID: {task_id})")
+        print(f"Status: Noch in Bearbeitung")
 
     return result
 
@@ -196,11 +220,12 @@ async def check_all_pending(client):
 
     print(f"{len(entries)} ausstehende Generierung(en):\n")
     for entry in list(entries):
-        print(f"  Task: {entry['task_id']}")
-        print(f"  Notebook: {entry['notebook_id']}")
+        title = entry.get("title", "")
+        desc = entry.get("description", "")
+        print(f"  📓 {title or entry['notebook_id']}")
         print(f"  Gestartet: {entry['started_at']}")
-        print(f"  Beschreibung: {entry.get('description', '-')}")
-        await check_status(client, entry["notebook_id"], entry["task_id"])
+        await check_status(client, entry["notebook_id"], entry["task_id"],
+                           title=title, description=desc)
         print()
 
 
