@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -17,6 +18,8 @@ from notebooklm import NotebookLMClient
 load_dotenv()
 
 PENDING_FILE = Path(__file__).parent.parent / "pending_generations.json"
+MAC_MINI_HOST = "thomasbieth@100.71.69.76"
+MAC_MINI_PENDING = "~/Development/YouTube2NotebookLM/pending_generations.json"
 
 
 async def create_notebook(client, title, urls):
@@ -68,8 +71,21 @@ def _load_pending() -> list:
 
 
 def _save_pending(entries: list):
-    """Save pending generations to JSON file."""
+    """Save pending generations to JSON file and sync to Mac Mini."""
     PENDING_FILE.write_text(json.dumps(entries, indent=2, ensure_ascii=False))
+    _sync_pending_to_mac_mini()
+
+
+def _sync_pending_to_mac_mini():
+    """Copy pending_generations.json to Mac Mini via scp. Warns on failure."""
+    try:
+        subprocess.run(
+            ["scp", "-o", "ConnectTimeout=3", str(PENDING_FILE),
+             f"{MAC_MINI_HOST}:{MAC_MINI_PENDING}"],
+            capture_output=True, timeout=10,
+        )
+    except (subprocess.TimeoutExpired, Exception) as e:
+        print(f"WARNUNG: Sync zum Mac Mini fehlgeschlagen ({e}). Pending-Datei nur lokal.")
 
 
 def _add_pending(notebook_id: str, task_id: str, title: str = "", description: str = ""):
