@@ -42,9 +42,11 @@ uv pip install httpx
 - NLM RSS-Feed: `https://podcast.tomsolut.work/nlm-feed.xml`
 - Bestehender Feed: `feed.xml` (Tom's Weekly Briefings — nicht anfassen)
 - n8n (self-hosted): `http://100.77.144.40:5678` — Telegram-Approval + RSS-Update
-  - Workflow "NLM Podcast Webhook" (ID: YiATsxWZjUoqFpHw)
-  - Workflow "NLM Podcast Callback Handler" (ID: MA1L7ax6vJfRq4Ce)
+  - Workflow "NLM Podcast Webhook" (ID: eRCyTNQL23imi5F3) — empfaengt Daten, sendet Telegram
+  - Callback-Handling via "BlueDot Telegram Callback" (ID: q3FoQ0jQOcLTNQxN) — NLM-Callbacks mit `nlm_` Prefix
+  - Telegram-Bot: `TELEGRAM_BOT_TOKEN` im n8n-Container (nicht lokale .env!)
 - Pending-Datei: `/var/www/podcast/pending_episodes.json`
+- Dateiberechtigungen: `/var/www/podcast/` muss uid 1000 (node) gehoeren
 
 ## Workflow
 - GitHub-First: Issue → Branch → Implementierung → Merge

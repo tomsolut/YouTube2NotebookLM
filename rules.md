@@ -30,3 +30,8 @@
 - n8n: `N8N_RESTRICT_FILE_ACCESS_TO` muss `/var/www/podcast` enthalten fuer Feed-Zugriff
 - BlueDot nutzt Telegram-Webhooks mit separatem Bot-Token (`TELEGRAM_BOT_TOKEN_BLUEDOT`) — kein Polling-Konflikt mit NLM-Bot
 - NLM-Callback-Daten prefixed mit `nlm_` zur Unterscheidung von anderen Bots
+- WICHTIG: n8n-Container hat eigenen `TELEGRAM_BOT_TOKEN` — Webhook muss auf diesen Bot gesetzt werden, nicht auf lokale .env
+- n8n Code-Nodes: `this.helpers.httpRequest()` verwenden statt `require('https')` — Task Runner Sandbox blockiert Module
+- n8n Code-Nodes: `$getWorkflowStaticData()` statt `this.getWorkflowStaticData()` (v2 Syntax)
+- Cloudflare Access: Nur freigegebene Webhook-Pfade erreichbar — NLM nutzt bestehenden BlueDot-Webhook-Pfad
+- `/var/www/podcast/` Dateien muessen uid 1000 (node im Container) gehoeren
