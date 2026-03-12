@@ -9,6 +9,10 @@
 | #3 | Pipeline-Test & Doku | erledigt |
 | #4 | Podcast-Publishing mit Telegram-Approval | erledigt |
 | #6 | Telegram-Approval von Polling auf n8n-Webhook | erledigt |
+| #7 | Fire-and-Forget Audio + check-status + Telegram | erledigt |
+| #8 | Telegram-Titel + Mac Mini launchd Polling | erledigt |
+| #9 | Auto-Sync pending_generations.json zum Mac Mini | erledigt |
+| #10 | Generischer generate-Subcommand (alle 10 Artefakte) | erledigt |
 
 ## Erkenntnisse
 
@@ -38,3 +42,9 @@
 - n8n Code-Nodes: `$getWorkflowStaticData()` statt `this.getWorkflowStaticData()` (v2 Syntax)
 - Cloudflare Access: Nur freigegebene Webhook-Pfade erreichbar — NLM nutzt bestehenden BlueDot-Webhook-Pfad
 - `/var/www/podcast/` Dateien muessen uid 1000 (node im Container) gehoeren
+- NotebookLM hat KEINE Webhooks — nur Polling via `poll_status()` moeglich
+- `poll_status(notebook_id, task_id)` funktioniert auch in neuer Python-Session (listet alle Artefakte)
+- Chat-API (`ask`) persistiert Fragen NICHT im Web-UI Chatverlauf (Limitierung notebooklm-py)
+- Mac Mini (100.71.69.76) als 24/7 Automation-Hub: launchd prueft alle 120s ausstehende Generierungen
+- NLM-Auth (Browser-Cookies) koennen ablaufen — bei Fehler `notebooklm login` auf Mac Mini via Screen Sharing
+- `generate --type <typ>` unterstuetzt alle 10 NLM Studio-Artefakte mit Fire-and-Forget + Telegram
